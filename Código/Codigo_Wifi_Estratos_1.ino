@@ -6,19 +6,18 @@
 #include <Adafruit_SSD1306.h>
 
 // ----------------- CONFIGURACIÓN WIFI -------------------
-const char* ssid = "Jeronimo-HUAWEI nova 12s";
-const char* password = "22081995";
-// TODO: Cambia esta URL por la de tu servidor real
+const char* ssid = "";
+const char* password = "";
 const char* serverUrl = "https://smart-energy-unal.onrender.com/api/measurements"; 
 
-const unsigned long intervalMs = 10000; // Intervalo de envío (20 segundos)
+const unsigned long intervalMs = 10000; // Intervalo de envío (10 segundos)
 unsigned long previousMillis = 0;
 
-bool wifiHabilitado = true; // Control manual de WiFi
+bool wifiHabilitado = true;
 bool wifiConectado = false;
 unsigned long ultimoIntentoWifi = 0;
 
-// ---------- CONFIGURACIÓN PANTALLA SPI ----------
+// ---------- CONFIGURACIÓN PANTALLA OLED 7 PINES ----------
 #define ANCHO 128
 #define ALTO 64
 
@@ -30,7 +29,7 @@ unsigned long ultimoIntentoWifi = 0;
 
 Adafruit_SSD1306 display(ANCHO, ALTO, &SPI, PIN_DC, PIN_RESET, PIN_CS);
 
-// ---------- CONFIGURACIÓN PZEM ----------
+// ---------- CONFIGURACIÓN PZEM004T-V3 ----------
 PZEM004Tv30 pzem(Serial2, 21, 22); // RX=21, TX=22 ESP32
 
 bool pzemOK = false;
@@ -43,7 +42,7 @@ unsigned long ultimoIntentoPZEM = 0;
 
 // ---------- VARIABLES ----------
 int estrato = 3;
-float tarifas[7] = {0, 387, 484, 680, 800, 960, 960}; // Estratos 1-6
+float tarifas[7] = {0, 387, 484, 680, 800, 960, 960}; // Estratos 1-6 (Costos reporte enel Noviembre 2025 Bogotá)
 
 float energia_kWh_real = 0;       // energía real acumulada (cada 1s)
 float energia_kWh_acumulada = 0;  // energía proyectada (tiempo simulado)
@@ -61,10 +60,10 @@ unsigned long ultimoAcumulo = 0;
 // Variables para debounce mejorado
 unsigned long ultimaPulsacionSumar = 0;
 unsigned long ultimaPulsacionRestar = 0;
-unsigned long ultimaPulsacionEstrato = 0;  // NUEVO: Debounce para botón estrato
+unsigned long ultimaPulsacionEstrato = 0; 
 const unsigned long debounceDelay = 250;
 
-// NUEVO: Variables para indicador visual de cambio de estrato
+// Indicador visual de cambio de estrato
 bool estratoCambiado = false;
 unsigned long tiempoMostrarEstrato = 0;
 
@@ -96,11 +95,11 @@ void clean() {
   display.setCursor(0, 0);
 }
 
-// NUEVO: Función para mostrar indicador de estrato en todos los menús
+//Mostrar indicador de estrato en todos los menús
 void mostrarIndicadorEstrato() {
   // Mostrar indicador por 2 segundos después del cambio
   if (estratoCambiado && millis() - tiempoMostrarEstrato < 2000) {
-    // Cuadro en la esquina superior izquierda
+    // Cuadro en la esquina inferior izquierda
     display.fillRect(0, 52, 35, 12, SSD1306_WHITE);
     display.setTextColor(SSD1306_BLACK);
     display.setCursor(3, 54);
@@ -241,7 +240,7 @@ void enviarDatos(float v, float c, float p, float pf) {
 void setup() {
   pinMode(BOTON_SUMAR, INPUT_PULLUP);
   pinMode(BOTON_RESTAR, INPUT_PULLUP);
-  pinMode(BOTON_ESTRATO, INPUT_PULLUP);  // NUEVO: Inicializar botón de estrato
+  pinMode(BOTON_ESTRATO, INPUT_PULLUP);
 
   Serial.begin(115200);
   
@@ -308,7 +307,7 @@ void loop() {
     }
   }
 
-  // ---- NUEVO: Detectar cambio de estrato desde cualquier menú ----
+  // ---- Detectar cambio de estrato desde cualquier menú ----
   if (botonPresionado(BOTON_ESTRATO, ultimaPulsacionEstrato)) {
     estrato++;
     if (estrato > 6) estrato = 1;
@@ -377,7 +376,6 @@ void loop() {
 
     // ------------------ MENÚ 0: COSTO ------------------
     case 0:
-      // NOTA: Ya no se cambia estrato con RESTAR aquí
       if (botonPresionado(BOTON_SUMAR, ultimaPulsacionSumar)) {
         modo = 1;
       }
@@ -409,7 +407,7 @@ void loop() {
         display.fillCircle(120, 4, 2, SSD1306_WHITE);
       }
       
-      // NUEVO: Mostrar indicador de cambio de estrato
+      // Mostrar indicador de cambio de estrato
       mostrarIndicadorEstrato();
       
       // Alerta PZEM
@@ -421,7 +419,7 @@ void loop() {
       display.display();
       break;
 
-    // ------------------ MENÚ 1: DATOS ELÉCTRICOS ------------------
+    // ------------------ MENÚ 1: DATOS PZEM ------------------
     case 1:
       if (botonPresionado(BOTON_SUMAR, ultimaPulsacionSumar)) {
         modo = 2;
@@ -442,7 +440,7 @@ void loop() {
         display.fillCircle(120, 4, 2, SSD1306_WHITE);
       }
       
-      // NUEVO: Mostrar indicador de cambio de estrato
+      // Mostrar indicador de cambio de estrato
       mostrarIndicadorEstrato();
       
       if (!pzemOK) {
@@ -482,7 +480,7 @@ void loop() {
         display.fillCircle(120, 4, 2, SSD1306_WHITE);
       }
       
-      // NUEVO: Mostrar indicador de cambio de estrato
+      // Mostrar indicador de cambio de estrato
       mostrarIndicadorEstrato();
       
       if (!pzemOK) {
@@ -539,7 +537,7 @@ void loop() {
         display.println("OFF");
       }
       
-      // NUEVO: Mostrar indicador de cambio de estrato
+      // Mostrar indicador de cambio de estrato
       mostrarIndicadorEstrato();
       
       display.setCursor(0, 56);
