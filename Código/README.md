@@ -14,7 +14,9 @@ Las bibliotecas usadas en estre proyecto son
 
 # Resumen
 
-El codigo se realizo mediante Arduino IDE, este se guarda en el Esp32 para controlar todos los modulos usados y enviar los datos a la api, inicialmente, verifica la comunicación con el Pzem en la consola y establece conexión con la red wifi seleccionada, posteriormente inicia en el menú 0 en la pantalla OLED con el estrato 3 como predeterminado, con la carga actual, cada 3 segundos simula 30 minutos y los suma en el costo acumulado y los kWh, al poner o quitar la carga, no se elimina el acumulado.
+El codigo se realizo mediante Arduino IDE, este se guarda en el Esp32 para controlar todos los modulos usados y enviar los datos a la api.
+
+Inicialmente, verifica la comunicación con el Pzem en la consola y establece conexión con la red wifi seleccionada, posteriormente inicia en el menú 0 en la pantalla OLED con el estrato 3 como predeterminado, con la carga actual, cada 3 segundos simula 30 minutos y los suma en el costo acumulado y los kWh, al poner o quitar la carga, no se elimina el acumulado.
 
 En el menú 1, se pueden ver los valores actuales medidos por el Pzem (Voltaje, Corriente, Potencia y Factor de potencia) el Pzem calcula la potencia de la siguiente manera *V x I x Pf = W*. 
 
