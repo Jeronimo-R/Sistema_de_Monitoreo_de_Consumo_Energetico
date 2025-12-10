@@ -1,0 +1,103 @@
+(footprint "PZEM"
+	(version 20241229)
+	(generator "pcbnew")
+	(generator_version "9.0")
+	(layer "F.Cu")
+	(property "Reference" "REF**"
+		(at -9.525 -13.97 0)
+		(layer "F.SilkS")
+		(hide yes)
+		(uuid "f8907c3c-031e-4417-ac74-f48e81225715")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(property "Value" "PZEM"
+		(at 0.635 13.97 0)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "35ebd7b5-b7f6-4e5a-939a-3bdf6d6f4ed5")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(property "Datasheet" ""
+		(at 0 0 0)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "283e835e-1f15-4448-b63a-17d08e3fd1f4")
+		(effects
+			(font
+				(size 1.27 1.27)
+				(thickness 0.15)
+			)
+		)
+	)
+	(property "Description" ""
+		(at 0 0 0)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "a6cf7fb6-891b-423a-9cac-bd9534f7fa4b")
+		(effects
+			(font
+				(size 1.27 1.27)
+				(thickness 0.15)
+			)
+		)
+	)
+	(attr through_hole)
+	(fp_rect
+		(start -16.5 -13)
+		(end -6 -10)
+		(stroke
+			(width 0.1)
+			(type default)
+		)
+		(fill no)
+		(layer "F.SilkS")
+		(uuid "8e6234af-0cb0-4209-a54c-ef3a9b78ab4d")
+	)
+	(pad "1" thru_hole circle
+		(at -15.12 -11.5)
+		(size 1.508 1.508)
+		(drill 1)
+		(layers "*.Cu" "*.Mask")
+		(remove_unused_layers no)
+		(solder_mask_margin 0.102)
+		(uuid "fe628cc1-6a29-4f56-8839-c93c11fe0580")
+	)
+	(pad "2" thru_hole circle
+		(at -12.58 -11.5)
+		(size 1.508 1.508)
+		(drill 1)
+		(layers "*.Cu" "*.Mask")
+		(remove_unused_layers no)
+		(solder_mask_margin 0.102)
+		(uuid "2de5014a-4cd7-4fc9-8457-b6f7e4ec53a1")
+	)
+	(pad "3" thru_hole circle
+		(at -10.04 -11.5)
+		(size 1.508 1.508)
+		(drill 1)
+		(layers "*.Cu" "*.Mask")
+		(remove_unused_layers no)
+		(solder_mask_margin 0.102)
+		(uuid "f3f5b779-c5d5-4408-be48-5ee417e7084d")
+	)
+	(pad "4" thru_hole rect
+		(at -7.54 -11.5)
+		(size 1.508 1.508)
+		(drill 1)
+		(layers "*.Cu" "*.Mask")
+		(remove_unused_layers no)
+		(solder_mask_margin 0.102)
+		(uuid "9e3b1d0f-c042-4f80-b8eb-d1676498c904")
+	)
+	(embedded_fonts no)
+)
