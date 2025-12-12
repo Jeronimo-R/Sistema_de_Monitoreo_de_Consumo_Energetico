@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Smart Energy - Monitor Colombia</title>
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <style>
+    /* Animación alertas */
+    .alert-slide { animation: slideIn 0.35s ease-out; }
+    @keyframes slideIn {
+      from { transform: translateY(-8px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+  </style>
+</head>
+<body class="bg-gray-100">
+
+  <header class="bg-blue-600 text-white p-4 text-center text-2xl font-bold">
+    Smart Energy — Monitor (Colombia)
+  </header>
+
+  <!-- Contenedor alertas -->
+  <div id="alertContainer" class="fixed top-4 right-4 z-50 space-y-3"></div>
+
+  <main class="max-w-3xl mx-auto p-4">
+
+    <!-- Tarjeta principal: Gasto actual (COP) -->
+    <section id="mainCard" class="bg-white shadow-lg p-6 rounded-lg text-center mb-6 border-2">
+      <h2 class="font-bold text-xl">💸 Gasto actual estimado (COP)</h2>
+      <p id="cost" class="text-6xl font-extrabold mt-2">0</p>
+      <p id="estadoCosto" class="text-gray-500 mt-2">Esperando datos...</p>
+
+      <div class="mt-4 flex justify-center gap-4 text-sm text-gray-600">
+        <div id="tarifaInfo">Tarifa: -- COP/kWh</div>
+        <div id="horarioInfo">Horario: --</div>
+      </div>
+    </section>
+
+    <!-- Controles y datos secundarios -->
+    <section class="grid grid-cols-2 gap-4 mb-8">
+      <div class="bg-white shadow p-4 rounded-lg">
+        <h3 class="font-semibold">⚡ Consumo instantáneo</h3>
+        <p id="watts" class="text-3xl font-bold text-blue-600">0 W</p>
+        <p id="powerKwh" class="text-sm text-gray-500 mt-1">0.000 kW</p>
+      </div>
+
+      <div class="bg-white shadow p-4 rounded-lg">
+        <h3 class="font-semibold">📍 Estrato</h3>
+        <select id="estrato" class="mt-2 p-2 border rounded w-full">
+          <option value="1">Estrato 1</option>
+          <option value="2">Estrato 2</option>
+          <option value="3" selected>Estrato 3</option>
+          <option value="4">Estrato 4</option>
+          <option value="5">Estrato 5</option>
+          <option value="6">Estrato 6</option>
+        </select>
+        <p id="tarifaActual" class="text-sm text-gray-500 mt-2">Tarifa aplicada: -- COP/kWh</p>
+        <p id="ahorroInfo" class="text-sm text-gray-500 mt-1"></p>
+      </div>
+    </section>
+
+    <!-- Chart -->
+    <section class="bg-white p-6 shadow rounded-lg mb-8">
+      <h3 class="text-lg font-semibold mb-2">Historial de consumo (Watts)</h3>
+      <canvas id="powerChart" height="120"></canvas>
+    </section>
+
+<!-- Consumo y costos basados en energía real -->
+<section class="bg-white p-6 shadow rounded-lg mb-8">
+  <h3 class="text-lg font-semibold mb-3">Consumo estimado</h3>
+
+  <div class="grid grid-cols-3 gap-4 text-center">
+    <div class="p-4 border rounded">
+      <p class="font-semibold">Hoy</p>
+      <p id="simDia" class="text-xl font-bold">0 kWh</p>
+    </div>
+    <div class="p-4 border rounded">
+      <p class="font-semibold">Semana</p>
+      <p id="simSemana" class="text-xl font-bold">0 kWh</p>
+    </div>
+    <div class="p-4 border rounded">
+      <p class="font-semibold">Mes</p>
+      <p id="simMes" class="text-xl font-bold">0 kWh</p>
+    </div>
+  </div>
+
+  <h3 class="text-lg font-semibold mt-6 mb-3">Costo estimado (COP)</h3>
+
+  <div class="grid grid-cols-3 gap-4 text-center">
+    <div class="p-4 border rounded">
+      <p class="font-semibold">Hoy</p>
+      <p id="simDiaCosto" class="text-xl font-bold text-blue-700">0 COP</p>
+    </div>
+    <div class="p-4 border rounded">
+      <p class="font-semibold">Semana</p>
+      <p id="simSemanaCosto" class="text-xl font-bold text-green-700">0 COP</p>
+    </div>
+    <div class="p-4 border rounded">
+      <p class="font-semibold">Mes</p>
+      <p id="simMesCosto" class="text-xl font-bold text-purple-700">0 COP</p>
+    </div>
+  </div>
+</section>
+
+    <!-- Tabla -->
+    <section class="bg-white p-6 shadow rounded-lg mb-10">
+      <h3 class="text-lg font-semibold mb-3">Últimos registros</h3>
+      <table class="w-full table-auto text-left border">
+        <thead class="bg-gray-200">
+          <tr>
+            <th class="p-2">Fecha</th>
+            <th class="p-2">Voltaje</th>
+            <th class="p-2">Corriente</th>
+            <th class="p-2">Potencia (W)</th>
+            <th class="p-2">Energía</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+    </section>
+
+  </main>
+
+<script>
+/* ================== CONFIG ================== */
+/* API + WebSocket */
+const API = "https://smart-energy-unal.onrender.com";
+const WS_URL = "wss://smart-energy-unal.onrender.com/ws/realtime";
+const DEVICE = "esp32_pzem";
+
+/* Tarifas base (COP/kWh) por estrato — ajústalas si lo deseas */
+const tarifas = {1:387, 2:484, 3:680, 4:800, 5:960, 6:960};
+
+/* Tarifas pico / valle por estrato (ejemplo Colombia) */
+const tarifasPico = {1:430,2:520,3:780,4:920,5:1050,6:1050};
+const tarifasValle = {1:350,2:440,3:620,4:700,5:850,6:850};
+
+/* Definición de horas (ajustables según comercializadora) */
+const horasPico = [17,18,19,20,21]; // 17:00-21:00
+const horasValle = [0,1,2,3,4,5,6,7,8,9,10,11,22,23];
+
+/* Umbrales de alerta (W) */
+const UMBRAL_ALTO = 1200;
+const UMBRAL_CRITICO = 2000;
+
+/* ================== UI references ================== */
+const costEl = document.getElementById("cost");
+const estadoCostoEl = document.getElementById("estadoCosto");
+const wattsEl = document.getElementById("watts");
+const powerKwhEl = document.getElementById("powerKwh");
+const tarifaActualEl = document.getElementById("tarifaActual");
+const tarifaInfoEl = document.getElementById("tarifaInfo");
+const horarioInfoEl = document.getElementById("horarioInfo");
+const ahorroInfoEl = document.getElementById("ahorroInfo");
+const estratoEl = document.getElementById("estrato");
+const alertContainer = document.getElementById("alertContainer");
+const tableBody = document.getElementById("tableBody");
+
+/* Historico para chart */
+let historicoWatts = [];
+let historicoTiempos = [];
+
+/* ================== Chart setup ================== */
+/* ================== Consumo real basado en energía del PZEM ================== */
+let energiaInicioDia = null;  
+let consumoDiaKwh = 0;
+let consumoSemanaKwh = 0;
+let consumoMesKwh = 0;
+
+function actualizarConsumos(potencia) {
+  // potenciaActual llega en watts
+  if (potencia < 0) potencia =0;
+
+  // Estimacion de consumo si la potencia estuviera conectada todo el tiempo
+  //Convertir potencia a Kw
+  const potenciaKw = potencia /1000;
+
+  //Proyección si se mantiene la potencia actual
+  const consumoDiaKwh = potenciaKw * 24;
+  const consumoSemanaKwh = consumoDiaKwh *7;
+  const consumoMesKwh = consumoDiaKwh *30;
+
+  function formatoNumero(valor, decimales = 2) {
+  return new Intl.NumberFormat("es-ES", {
+    minimumFractionDigits: decimales,
+    maximumFractionDigits: decimales,
+  }).format(valor);
+}
+
+  // Actualizar UI
+  document.getElementById("simDia").textContent = formatoNumero(consumoDiaKwh, 2) + " kWh";
+  document.getElementById("simSemana").textContent = formatoNumero(consumoSemanaKwh, 2) + " kWh";
+  document.getElementById("simMes").textContent = formatoNumero(consumoMesKwh, 2) + " kWh";
+
+  // Costo tarifa segun estrato/hora
+  const estrato = Number(estratoEl.value);
+  const tarifa = tarifaAplicada(estrato, horaActual());
+
+  document.getElementById("simDiaCosto").textContent = formatoNumero(consumoDiaKwh * tarifa, 1) + " COP";
+  document.getElementById("simSemanaCosto").textContent = formatoNumero(consumoSemanaKwh * tarifa, 1) + " COP";
+  document.getElementById("simMesCosto").textContent = formatoNumero(consumoMesKwh * tarifa, 1) + " COP";
+}
+
+const ctx = document.getElementById("powerChart");
+const chart = new Chart(ctx, {
+  type: "line",
+  data: {
+    labels: historicoTiempos,
+    datasets: [{
+      label: "Watts",
+      data: historicoWatts,
+      borderWidth: 2,
+      tension: 0.2,
+      pointRadius: 2
+    }]
+  },
+  options: {
+    scales: { y: { beginAtZero: true } }
+  }
+});
+
+/* ================== Helper: horario ================== */
+function horaActual() {
+  return new Date().getHours();
+}
+function esPico(h) { return horasPico.includes(h); }
+function esValle(h) { return horasValle.includes(h); }
+
+/* ================== Alerts ================== */
+let ultimaAlertaAlta = 0;
+let ultimaAlertaCritica = 0;
+
+function lanzarAlerta(tipo, mensaje) {
+  const alerta = document.createElement("div");
+  alerta.className = "alert-slide p-3 rounded shadow-lg font-semibold";
+  alerta.style.minWidth = "220px";
+  if (tipo === "warning") {
+    alerta.classList.add("bg-yellow-400", "text-black");
+  } else if (tipo === "danger") {
+    alerta.classList.add("bg-red-600", "text-white");
+  } else {
+    alerta.classList.add("bg-blue-500", "text-white");
+  }
+  alerta.innerText = mensaje;
+  alertContainer.appendChild(alerta);
+  setTimeout(() => {
+    alerta.remove();
+  }, 6000);
+}
+
+/* ================== Cálculos: tarifa y costos ================== */
+function tarifaAplicada(estrato, hora) {
+  // Prioriza pico/valle; si no es ninguno, usa tarifa base||
+  if (esPico(hora)) return tarifasPico[estrato] ?? tarifas[estrato];
+  if (esValle(hora)) return tarifasValle[estrato] ?? tarifas[estrato];
+  return tarifas[estrato] ?? 0;
+}
+
+function actualizarUIconTarifa(estrato, hora) {
+  const tBase = tarifas[estrato] ?? 0;
+  tarifaInfoEl.textContent = `Tarifa base (estrato ${estrato}): ${tBase} COP/kWh`;
+  horarioInfoEl.textContent = esPico(hora) ? "Hora: PICO" : (esValle(hora) ? "Hora: VALLE" : "Hora: NORMAL");
+}
+
+/* Calcula y actualiza valores en pantalla */
+function actualizarCostoYUI(watts) {
+  const estrato = Number(estratoEl.value);
+  const h = horaActual();
+
+  const tarifa = tarifaAplicada(estrato, h);
+  const kwh = watts / 1000; // kW instantáneo = kWh por hora
+  const costoHoraCOP = kwh * tarifa; // COP por hora
+  const costoDiaCOP = costoHoraCOP * 24;
+  const costoMesCOP = costoDiaCOP * 30;
+
+  // UI principal
+  costEl.textContent = costoHoraCOP.toFixed(2);
+  wattsEl.textContent = `${watts.toFixed(2)} W`;
+  powerKwhEl.textContent = `${kwh.toFixed(3)} kW`;
+
+  tarifaActualEl.textContent = `Tarifa aplicada: ${tarifa} COP/kWh`;
+  actualizarUIconTarifa(estrato, h);
+
+  // Estado visual del costo (comercial)
+  const mainCard = document.getElementById("mainCard");
+  mainCard.classList.remove("border-green-500", "border-yellow-400", "border-red-600");
+  if (costoHoraCOP < 200) {
+    mainCard.classList.add("border-green-500");
+    estadoCostoEl.textContent = "Costo bajo";
+  } else if (costoHoraCOP < 600) {
+    mainCard.classList.add("border-yellow-400");
+    estadoCostoEl.textContent = "Costo medio";
+  } else {
+    mainCard.classList.add("border-red-600");
+    estadoCostoEl.textContent = "Costo alto";
+  }
+
+  // Ahorro estimado: comparar tarifa actual vs tarifa alterna (pico <-> valle)
+  const tarifaP = tarifasPico[estrato] ?? tarifa;
+  const tarifaV = tarifasValle[estrato] ?? tarifa;
+  let ahorroHora = 0;
+  let estado = "normal";
+  if (esPico(h)) {
+    // si estamos en pico, ahorro es lo que pagarías menos si estuvieras en valle
+    ahorroHora = Math.max(0, (kwh * tarifaP) - (kwh * tarifaV));
+    estado = "pico";
+  } else if (esValle(h)) {
+    // si estamos en valle, ahorro es lo que evitas pagando respecto a pico
+    ahorroHora = Math.max(0, (kwh * tarifaP) - (kwh * tarifaV));
+    estado = "valle";
+  } else {
+    ahorroHora = Math.max(0, (kwh * tarifaP) - (kwh * tarifa));
+    estado = "normal";
+  }
+
+  ahorroInfoEl.textContent = `Ahorro estimado (h): ${ahorroHora.toFixed(2)} COP — estado: ${estado.toUpperCase()}`;
+}
+
+/* ================== Verificar alertas por consumo ================== */
+function verificarAlertas(watts) {
+  const ahora = Date.now();
+
+  if (watts > UMBRAL_ALTO && watts <= UMBRAL_CRITICO) {
+    if (ahora - ultimaAlertaAlta > 10000) { // cada 10s máximo
+      lanzarAlerta("warning", `Consumo alto: ${Math.round(watts)} W`);
+      ultimaAlertaAlta = ahora;
+    }
+  }
+
+  if (watts > UMBRAL_CRITICO) {
+    if (ahora - ultimaAlertaCritica > 8000) { // cada 8s máximo
+      lanzarAlerta("danger", `¡Consumo crítico: ${Math.round(watts)} W!`);
+      ultimaAlertaCritica = ahora;
+    }
+  }
+}
+
+/* ================== WebSocket LIVE ================== */
+function conectarWebSocket() {
+  let ws;
+  try {
+    ws = new WebSocket(WS_URL);
+  } catch (err) {
+    console.error("No se pudo crear WebSocket:", err);
+    lanzarAlerta("danger", "Error al conectar WebSocket");
+    return;
+  }
+
+  ws.onopen = () => {
+    console.log("WS conectado");
+  };
+
+  ws.onmessage = (evt) => {
+    try {
+      const msg = JSON.parse(evt.data);
+      if (msg.type === "measurement") {
+        const d = msg.data;
+        const potencia = Number(d.power) || 0;
+        actualizarConsumos(potencia);
+
+
+        // Actualizar UI y cálculos
+        actualizarCostoYUI(potencia);
+        verificarAlertas(potencia);
+
+        // Actualizar chart
+        historicoWatts.push(potencia);
+        historicoTiempos.push(new Date(d.timestamp).toLocaleTimeString());
+
+        if (historicoWatts.length > 60) {
+          historicoWatts.shift();
+          historicoTiempos.shift();
+        }
+        chart.update();
+
+        // Actualizar tabla historial (solo 50 últimos)
+        // (no modificamos el back-end; aquí mostramos lo que viene del mensaje)
+        const row = document.createElement("tr");
+        row.className = "border-b";
+        row.innerHTML = `
+          <td class="p-2">${new Date(d.timestamp).toLocaleString()}</td>
+          <td class="p-2">${d.voltage ?? "-"}</td>
+          <td class="p-2">${d.current ?? "-"}</td>
+          <td class="p-2">${d.power ?? "-"}</td>
+          <td class="p-2">${d.energy ?? "-"}</td>`;
+        tableBody.prepend(row);
+
+        // mantener solo 50 filas en la tabla
+        while (tableBody.children.length > 50) tableBody.removeChild(tableBody.lastChild);
+      }
+    } catch (err) {
+      console.error("Error procesando mensaje WS:", err);
+    }
+  };
+
+  ws.onerror = (err) => {
+    console.error("WebSocket error:", err);
+  };
+
+  ws.onclose = (ev) => {
+    console.log("WS cerrado. Reintentando en 3s", ev.reason);
+    setTimeout(conectarWebSocket, 3000);
+  };
+}
+
+/* ================== Historial REST (fallback inicial) ================== */
+async function cargarHistorialInicial() {
+  try {
+    const res = await fetch(`${API}/api/measurements?device_id=${DEVICE}&limit=50`);
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    const data = await res.json();
+    // ordenar del más reciente al más antiguo
+    data.slice().reverse().forEach(item => {
+      const row = document.createElement("tr");
+      row.className = "border-b";
+      row.innerHTML = `
+        <td class="p-2">${new Date(item.timestamp).toLocaleString()}</td>
+        <td class="p-2">${item.voltage}</td>
+        <td class="p-2">${item.current}</td>
+        <td class="p-2">${item.power}</td>
+        <td class="p-2">${item.energy}</td>`;
+      tableBody.appendChild(row);
+
+      // también llena chart inicial
+      historicoWatts.push(Number(item.power) || 0);
+      historicoTiempos.push(new Date(item.timestamp).toLocaleTimeString());
+    });
+    chart.update();
+  } catch (err) {
+    console.warn("No se pudo cargar historial inicial:", err);
+  }
+}
+
+/* ================== Eventos UI ================== */
+estratoEl.addEventListener("change", () => {
+  const potenciaActual = Number(wattsEl.textContent.replace(" W", "")) || 0;
+  const h = horaActual();
+  // recalcular UI con la nueva tarifa
+  actualizarCostoYUI(potenciaActual);
+});
+
+/* ================== Inicio ================== */
+cargarHistorialInicial();
+conectarWebSocket();
+</script>
+</body>
+</html>
